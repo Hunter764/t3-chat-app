@@ -1,0 +1,77 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+
+import React from 'react'
+
+const ChatMessageForm = ({initialMessage, onMessageChange}) => {
+    const [message, setMessage] = useState("");
+
+    useEffect(()=>{
+        if(initialMessage){
+            setMessage(initialMessage);
+            onMessageChange?.(initialMessage);
+        }
+    },[initialMessage, onMessageChange]);
+
+    const handleSubmit = async (e)=>{
+        try{
+            e.preventDefault();
+            console.log("Message sent")
+        }catch(error){
+            console.log("Error in sending message:", error);
+        }
+    }
+
+
+  return (
+    <div className="w-full max-w-3xl mx-auto px-6 py-4">
+        <form onSubmit={handleSubmit}>
+            <div className="relative rounded-2xl border border-border bg-background shadow-sm hover:shadow-md transition-shadow">
+                <Textarea 
+                    value={message}
+                    onChange={(e)=>setMessage(e.target.value)}
+                    placeholder="Type your message here..."
+                    className="min-h-[70px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 text-base focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
+                    onKeyDown={(e)=>{
+                        if(e.key ==="Enter" && !e.shiftKey){
+                            e.preventDefault();
+                            handleSubmit(e);
+                        }
+                    }}
+                />
+                <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            type="button"
+                            variant="outline" 
+                            size="sm"
+                            className="h-9"
+                        >
+                            Select Model
+                        </Button>
+                    </div>
+                    <Button
+                        type="submit"
+                        disabled={!message.trim()}
+                        size="icon"
+                        className={cn(
+                            "h-9 w-9 rounded-full transition-all",
+                            !message.trim() && "opacity-50"
+                        )}
+                    >
+                        <Send className="h-4 w-4"/>
+                        <span className="sr-only">Send Message</span>
+                    </Button>
+                </div>
+            </div>
+        </form>
+    </div>
+  )
+}
+
+export default ChatMessageForm
