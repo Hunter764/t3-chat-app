@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAIModels } from "@/modules/ai-agent/hook/ai-agent";
+import { useCreateChat } from "@/modules/chat/hooks/chat";
 
 import React from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { ModelSelector } from "./model-selector";
+import { toast } from "sonner";
 
 const ChatMessageForm = ({ initialMessage, onMessageChange }) => {
   const { data: models, isPending } = useAIModels();
-    const [selectedModel, setSelectedModel] = useState(models?.models[0]?.id || null);
+  const [selectedModel, setSelectedModel] = useState(models?.models[0]?.id || null);
   const [message, setMessage] = useState("");
+  const { mutateAsync, isPending: isChatPending } = useCreateChat();
 
   useEffect(() => {
     if (initialMessage) {
@@ -26,9 +29,15 @@ const ChatMessageForm = ({ initialMessage, onMessageChange }) => {
   const handleSubmit = async (e) => {
     try {
       e.preventDefault();
-      console.log("Message sent");
+      await mutateAsync({content:message, model:selectedModel});
+      toast.success("Message sent successfully");
     } catch (error) {
-      console.log("Error in sending message:", error);
+      console.error("Error in sending message:", error);
+      toast.error("Failed to send message");
+    }
+    finally{
+      setMessage("");
+
     }
   };
 
@@ -68,15 +77,18 @@ const ChatMessageForm = ({ initialMessage, onMessageChange }) => {
             </div>
             <Button
               type="submit"
-              disabled={!message.trim()}
+              disabled={!message.trim() || isChatPending}
               size="icon"
               className={cn(
                 "h-9 w-9 rounded-full transition-all",
                 !message.trim() && "opacity-50",
               )}
             >
-              <Send className="h-4 w-4" />
-              <span className="sr-only">Send Message</span>
+             { isChatPending ? <>
+              <Spinner/>
+             </> : <>
+             <Send className="h-4 w-4" />
+              <span className="sr-only">Send Message</span></> }
             </Button>
           </div>
         </div>
