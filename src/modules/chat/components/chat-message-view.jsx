@@ -21,8 +21,8 @@ const ChatMessageView = ({user}) => {
         </div>
         <div className='border-t border-border bg-background'>
             <ChatMessageForm 
-                intialMessage={selectedMessage}
-                onMessageSelect={handleMessageSelect}
+                initialMessage={selectedMessage}
+                onMessageChange={handleMessageSelect}
             />
         </div>
     </div>

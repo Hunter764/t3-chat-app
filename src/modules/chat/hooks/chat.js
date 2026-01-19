@@ -1,0 +1,31 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { createChatWithMessage } from '../actions';
+
+
+export const useCreateChat = ()=>{
+    const queryClient = useQueryClient();
+
+    const router = useRouter();
+
+    return useMutation({
+        mutationFn:(values)=> createChatWithMessage(values),
+
+        onSuccess:(res) => {
+            //add optimistic ui
+            if(res.success && res.data){
+                const chat = res.data;
+
+                queryClient.invalidateQueries(['chats']);
+
+                router.push(`/chat/${chat.id}?autoTrigger= true`)
+            }
+        },
+
+        onError:(error) => {
+            console.error("Create chat  error");
+            toast.error("Failed to create chat ")
+        }
+    })
+}
