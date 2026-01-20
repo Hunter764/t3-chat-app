@@ -3,6 +3,7 @@
 import db  from "@/lib/db"
 import { currentUser } from "@/modules/authentication/actions"
 import {MessageRole, MessageType} from "@prisma/client"
+import { id } from "date-fns/locale"
 import { revalidatePath } from "next/cache"
 import { use } from "react"
 import { success } from "zod"
@@ -49,5 +50,88 @@ export const createChatWithMessage = async (values) => {
     }catch(error){
         console.error("Error creating: ", error);
         return {success: false, message: "Failed to create chat"};
+    }
+}
+
+export const getAllChates = async() => {
+    try{
+        const user = await currentUser();
+        if(!user){
+            return {
+                success: false,
+                message: "Unauthorized user"
+            };
+        }
+
+        const chats = await db.chat.findMany({
+            where:{
+                userId: user.id
+            },
+            include:{
+                messages: true
+            },
+            orderBy:{
+                createdAt:"desc"
+            }
+        })
+
+        return {
+            success: true,
+            message: "Chats fetched successfully",
+            data: chats
+        };
+    }catch(error){
+            console.error("Error fetching chats: ",error);
+            return{
+                success: false,
+                message: "Failed to fetch chats"
+            };
+    }
+};
+
+
+export const deleteChat = async(chatId) => {
+    try{
+        const user = await currentUser();
+
+        if(!user){
+            return {
+                success: false,
+                message: "Unauthorized user"
+            };
+        }
+
+        const chat = await db.chat.findUnique({
+            where:{
+                id: chatId,
+                userId: user.id
+            }
+        });
+
+        if(!chat){
+            return{
+                success: false,
+                message: "Chat not found"
+            };
+        }
+
+        await db.chat.delete({
+            where:{
+                id:chatId
+            }
+        })
+
+        revalidatePath("/");
+
+        return{
+            success: true,
+            message: "Chat deleted successfully"
+        }
+    }catch(error){
+        console.error("Error deleting chat:",error);
+        return{
+            success: false,
+            message: "Failed to delete chat"
+        };
     }
 }
