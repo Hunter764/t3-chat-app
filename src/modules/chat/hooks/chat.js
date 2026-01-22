@@ -1,63 +1,52 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-import { createChatWithMessage, deleteChat, getChatById } from '../actions';
-import { use } from 'react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { createChatWithMessage, deleteChat, getChatById } from "../actions";
+import { toast } from "sonner";
 
+export const useCreateChat = () => {
+  const queryClient = useQueryClient();
 
-export const useCreateChat = ()=>{
-    const queryClient = useQueryClient();
+  const router = useRouter();
 
-    const router = useRouter();
+  return useMutation({
+    mutationFn: (values) => createChatWithMessage(values),
+    onSuccess: (res) => {
+      if (res.success && res.data) {
+        // add optimistic ui
+        const chat = res.data;
 
-    return useMutation({
-        mutationFn:(values)=> createChatWithMessage(values),
+        queryClient.invalidateQueries(["chats"]);
 
-        onSuccess:(res) => {
-            //add optimistic ui
-            if(res.success && res.data){
-                const chat = res.data;
-
-                queryClient.invalidateQueries(['chats']);
-
-                router.push(`/chat/${chat.id}?autoTrigger= true`)
-            }
-        },
-
-        onError:(error) => {
-            console.error("Create chat  error");
-            toast.error("Failed to create chat ")
-        },
-    });
+        router.push(`/chat/${chat.id}?autoTrigger=true`);
+      }
+    },
+    onError: (error) => {
+      console.error("Create chat error:", error);
+      toast.error("Failed to create chat");
+    },
+  });
 };
 
 
- export const useDeleteCht = (chatId) => {
-    const queryClient = useQueryClient();
+export const useDeleteChat = (chatId)=>{
+  const queryClient = useQueryClient();
 
-    const router = useRouter();
+  const router = useRouter();
 
-    return useMutation({
-        mutationFn:() => deleteChat(chatId),
-        onSuccess:(res) => {
-            if (res.success) {
-                queryClient.invalidateQueries(['chats']);
-                router.push('/');
-                toast.success("Chat deleted successfully");
-            } else {
-                toast.error(res.message || "Failed to delete chat");
-            }
-        },
-        onError:(error)=>{
-            console.error("Delete chat error:", error);
-            toast.error("Failed to delete chat");
-        }
-    })
- }
+  return useMutation({
+    mutationFn:()=>deleteChat(chatId),
+    onSuccess:()=>{
+      queryClient.invalidateQueries(["chats"])
+    },
+    onError:()=>{
+      toast.error("Failed to delete chat")
+    }
+  })
+}
 
- export const useChatById = (chatId) => {
-    return useQuery({
-        queryKey: ['chat', chatId],
-        queryFn: () => getChatById(chatId)
-    })
- }
+export const useGetChatById = (chatId)=>{
+  return useQuery({
+    queryKey:["chats" , chatId],
+    queryFn:()=>getChatById(chatId)
+  })
+}

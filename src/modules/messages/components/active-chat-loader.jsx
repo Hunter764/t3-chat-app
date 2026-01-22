@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { useChatStore } from "@/modules/chat/store/chat-store";
-import { useChatById } from "@/modules/chat/hooks/chat";
+import { useGetChatById } from "@/modules/chat/hooks/chat";
 
 const ActiveChatLoader = ({chatId}) => {
     const {setActiveAChatId, setMessages, addChat, chats} = useChatStore();
 
-    const {data} = useChatById(chatId);
+    const {data} = useGetChatById(chatId);
 
     useEffect(()=>{
         if(!chatId) return;

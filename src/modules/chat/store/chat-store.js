@@ -5,6 +5,7 @@ export const useChatStore = create((set,get)=>({
     chats:[],
     activeChatId: null,
     messages:[],
+    triggeredChats: new Set(),
 
 
 
@@ -21,4 +22,15 @@ export const useChatStore = create((set,get)=>({
     //clear messages when switchin chat
 
     clearMessages:() => set({messages: []}),
+
+    markChatAsTriggered:(chatId) =>{
+        const triggered = new Set(get().triggeredChats);
+        triggered.add(chatId);
+        set({triggeredChats: triggered});
+    },
+
+    hasChatBeenTriggered:(chatId) => {
+        return get().triggeredChats.has(chatId);
+    },
+
 }));

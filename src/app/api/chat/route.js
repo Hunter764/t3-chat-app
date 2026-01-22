@@ -1,4 +1,4 @@
-import { convertToModelMessages, streamText, tool } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 
 import db from "@/lib/db";
 import { MessageRole, MessageType } from "@prisma/client";
@@ -79,7 +79,7 @@ export async function POST(req){
             model: provider.chat(model),
             messages: modelMessages,
             system: CHAT_SYSTEM_PROMPT
-        })
+        });
 
         return result.toUIMessageStream({
             sendReasoning: true,
@@ -100,7 +100,7 @@ export async function POST(req){
                                 content: userPartsJSON,
                                 messageRole: MessageRole.USER,
                                 model,
-                                MessageType: MessageType.NORMAL
+                                messageType: MessageType.NORMAL
                             })
                         }
                     }
