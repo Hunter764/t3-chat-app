@@ -12,10 +12,10 @@ const provider = createOpenRouter({
     apiKey:process.env.OPENROUTER_API_KEY
 })
 
-function convertStoreMessageToUI(msg){
+function convertStoredMessageToUI(msg){
     try{
         const parts = JSON.parse(msg.content);
-        const validParts = parts.filter(part => part.type === "text")
+        const validParts = parts.filter(part => part.type === "text" || part.type === "reasoning")
 
         if(validParts.length === 0) return null;
 
@@ -55,7 +55,7 @@ export async function POST(req){
             }
         }): [];
 
-        const uiMessages = previousMessages.map(convertStoreMessageToUI).filter(msg => msg !== null)
+        const uiMessages = previousMessages.map(convertStoredMessageToUI).filter(msg => msg !== null)
 
         const normalizeNewMessages = Array.isArray(newMessages)? newMessages: [newMessages]
 
