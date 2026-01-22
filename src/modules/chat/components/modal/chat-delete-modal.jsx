@@ -1,12 +1,12 @@
 "use client";
 
 import Modal from "@/components/ui/modal";
-import { useDeleteCht } from "../../hooks/chat";
+import { useDeleteChat } from "../../hooks/chat";
 import React from "react";
 import { toast } from "sonner";
 
 const DeleteChatModal = ({ isModalOpen, setIsModalOpen, chatId }) => {
-  const { mutateAsync, isPending } = useDeleteCht(chatId);
+  const { mutateAsync, isPending } = useDeleteChat(chatId);
 
   const handleDelete = async () => {
     try {
