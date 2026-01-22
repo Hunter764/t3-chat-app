@@ -1,6 +1,6 @@
-# T3-Chat - Enterprise AI Chat Application
+# T3 Chat - AI Chat Application
 
-A full-stack, production-ready AI chat application built with Next.js 16, featuring multi-model AI integration, real-time chat capabilities, and enterprise-grade authentication.
+A modern, full-stack AI chat application built with Next.js 16, featuring multi-model AI integration through OpenRouter, real-time streaming chat, and secure authentication.
 
 ## Table of Contents
 
@@ -8,18 +8,13 @@ A full-stack, production-ready AI chat application built with Next.js 16, featur
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Environment Setup](#environment-setup)
-- [Database Setup](#database-setup)
-- [Running the Application](#running-the-application)
+- [Deployment](#deployment)
 - [Architecture](#architecture)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Overview
 
-T3-Chat is a comprehensive enterprise-grade chat application built using modern web technologies and best practices. The application integrates advanced AI capabilities through OpenRouter, providing users with access to multiple AI models within a seamless, secure, and scalable interface. The project demonstrates production-ready patterns for authentication, database management, API design, and user interface development.
+T3 Chat is a modern AI chat application that provides seamless access to multiple AI models through OpenRouter integration. Built with Next.js 16 and the Vercel AI SDK, it features real-time streaming responses, persistent chat history, and GitHub OAuth authentication. The application demonstrates best practices for full-stack development with Next.js App Router, Prisma ORM, and Better Auth.
 
 ## Features
 
@@ -36,10 +31,12 @@ T3-Chat is a comprehensive enterprise-grade chat application built using modern 
 - **Theme Support** - Dark and light mode with persistent user preferences
 
 ### AI Integration
-- **Multi-Model Support** - Integration with various AI models via OpenRouter
+- **Vercel AI SDK** - Streaming AI responses with useChat hook
+- **OpenRouter Integration** - Access to multiple AI models (OpenAI, Anthropic, Google, Meta, etc.)
 - **Dynamic Model Selection** - Runtime switching between different AI models
-- **Model Discovery** - Automated fetching and display of available models
-- **Conversation Management** - Persistent chat history and context handling
+- **Model Discovery** - Automated fetching and display of available models via API
+- **Streaming Chat** - Real-time message streaming with full conversation context
+- **Message Persistence** - Automatic saving of chat history to PostgreSQL database
 
 ### Database & Backend
 - **Prisma ORM** - Type-safe database operations with automated migrations
@@ -58,6 +55,7 @@ T3-Chat is a comprehensive enterprise-grade chat application built using modern 
 ### Frontend
 - **Next.js 16.1** - React framework with App Router architecture
 - **React 19.2** - JavaScript library for building user interfaces
+- **Vercel AI SDK 3.0** - AI chat interface with streaming support
 - **Tailwind CSS 4** - Utility-first CSS framework
 - **Shadcn/ui** - Re-usable component library built on Radix UI
 - **React Hook Form 7.71** - Performant form validation and management
@@ -65,9 +63,10 @@ T3-Chat is a comprehensive enterprise-grade chat application built using modern 
 - **TanStack Query 5.90** - Powerful data synchronization and state management
 
 ### Backend
-- **Next.js API Routes** - Serverless API endpoints
-- **Better-Auth 1.4** - Modern authentication library
-- **Prisma 7.2** - Next-generation ORM with type safety
+- **Next.js API Routes** - Serverless API endpoints with streaming support
+- **OpenRouter AI SDK 2.0** - Multi-model AI provider integration
+- **Better-Auth 1.4** - Modern authentication library with OAuth support
+- **Prisma 7.2** - Next-generation ORM with type safety and migrations
 - **PostgreSQL** - Advanced open-source relational database
 - **pg 8.16** - PostgreSQL client for Node.js
 
@@ -111,125 +110,6 @@ t3-chat/
 └── package.json             # Dependencies
 
 ```
-
-## Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js** - Version 18.0 or higher
-- **Package Manager** - npm, yarn, or pnpm
-- **Docker Desktop** - Version 20.10 or higher with Docker Compose
-- **Git** - Version control system
-- **OpenRouter Account** - For AI model access
-
-## Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd t3-chat
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-## Environment Setup
-
-Create a `.env.local` file in the root directory with the following configuration:
-
-```env
-# Database Configuration
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
-
-# Authentication
-BETTER_AUTH_SECRET="<generate-using-openssl-rand-base64-32>"
-BETTER_AUTH_URL="http://localhost:3000"
-
-# OAuth Providers (Optional)
-GITHUB_CLIENT_ID="<your-github-oauth-client-id>"
-GITHUB_CLIENT_SECRET="<your-github-oauth-client-secret>"
-
-# AI Integration
-OPENROUTER_API_KEY="<your-openrouter-api-key>"
-```
-
-### Configuration Steps
-
-1. **Generate Authentication Secret**
-   ```bash
-   openssl rand -base64 32
-   ```
-
-2. **Configure GitHub OAuth** (Optional)
-   - Navigate to GitHub Settings → Developer settings → OAuth Apps
-   - Create new OAuth application
-   - Set Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
-   - Copy Client ID and Client Secret to environment file
-
-3. **Obtain OpenRouter API Key**
-   - Register at [OpenRouter](https://openrouter.ai/)
-   - Generate API key from dashboard
-   - Add key to environment configuration
-
-## Database Setup
-
-1. **Initialize PostgreSQL container**
-   ```bash
-   docker compose up -d
-   ```
-
-2. **Apply database migrations**
-   ```bash
-   npx prisma migrate dev
-   ```
-
-3. **Generate Prisma Client**
-   ```bash
-   npx prisma generate
-   ```
-
-4. **Verify database connection** (Optional)
-   ```bash
-   npx prisma studio
-   ```
-
-## Running the Application
-
-### Development Environment
-
-```bash
-npm run dev
-```
-
-The development server will start on [http://localhost:3000](http://localhost:3000) with hot-reloading enabled.
-
-### Production Build
-
-```bash
-npm run build
-npm start
-```
-
-### Additional Commands
-
-```bash
-# Code linting
-npm run lint
-
-# Database operations
-npx prisma migrate dev          # Create and apply migrations
-npx prisma migrate reset        # Reset database
-npx prisma db push             # Push schema changes without migrations
-npx prisma studio              # Open database GUI
-
-# Docker operations
-docker compose up -d           # Start services
-docker compose down            # Stop services
-docker compose logs            # View logs
-```
-
 ## Architecture
 
 ### Application Structure
@@ -267,13 +147,14 @@ Please ensure your code adheres to the existing style and passes all linting che
 ## Acknowledgments
 
 - [Next.js](https://nextjs.org/) - React Framework
+- [Vercel AI SDK](https://sdk.vercel.ai/) - AI Streaming Interface
+- [OpenRouter](https://openrouter.ai/) - AI Model Gateway
 - [Shadcn/ui](https://ui.shadcn.com/) - Component System
 - [Better-Auth](https://www.better-auth.com/) - Authentication Library
 - [Prisma](https://www.prisma.io/) - Database ORM
-- [OpenRouter](https://openrouter.ai/) - AI Model Gateway
 - [Tailwind CSS](https://tailwindcss.com/) - CSS Framework
 - [Radix UI](https://www.radix-ui.com/) - UI Primitives
 
 ---
 
-**T3-Chat** - Built with modern web technologies for scalable AI chat applications
+**T3 Chat** - Modern AI chat application powered by Next.js and OpenRouter
