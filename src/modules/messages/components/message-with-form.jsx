@@ -21,8 +21,8 @@ import {
   PromptInputButton,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputToolbar,
   PromptInputTools,
+  PromptInputFooter,
 } from "@/components/ai-elements/prompt-input";
 import { Response } from "@/components/ai-elements/response";
 
@@ -238,7 +238,7 @@ console.log("Messages to render:", messageToRender);
 
               
               </PromptInputBody>
-              <PromptInputToolbar>
+              <PromptInputFooter>
                 <PromptInputTools className={"flex items-center gap-2"}>
                   {
                     isModelLoading ? (<Spinner/>) : (<ModelSelector
@@ -265,7 +265,7 @@ console.log("Messages to render:", messageToRender);
                 </PromptInputTools>
 
                 <PromptInputSubmit status={status}/>
-              </PromptInputToolbar>
+              </PromptInputFooter>
           </PromptInput>
 
 
