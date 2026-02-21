@@ -15,13 +15,10 @@ export async function GET(req){
         }
         const data = await response.json();
 
-        const freeModels = data.data.filter(model => {
-            const promptPrice = parseFloat(model.pricing?.prompt || "0")
-            const completionPrice = parseFloat(model.pricing?.completion || "0");
-            return promptPrice === 0 && completionPrice === 0;
-        })
+        // Enable Claude Haiku 4.5 and all other models for all clients
+        const allModels = data.data;
 
-        const formattedModels = freeModels.map(model => ({
+        const formattedModels = allModels.map(model => ({
             id : model.id,
             name: model.name,
             description: model.description,

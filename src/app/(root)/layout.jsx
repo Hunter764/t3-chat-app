@@ -4,7 +4,8 @@ import {headers} from "next/headers";
 import { redirect } from 'next/navigation';
 import ChatSidebar from '@/modules/chat/components/chat-sidebar';
 import { currentUser } from '@/modules/authentication/actions';
-import { getAllChates } from '@/modules/chat/actions';
+import { getAllChats } from '@/modules/chat/actions';
+export const dynamic = 'force-dynamic';
 import Header from '@/modules/chat/components/header';
 
 
@@ -15,7 +16,7 @@ const layout = async ({children}) => {
 
     const user = await currentUser();
 
-    const result = await getAllChates();
+    const result = await getAllChats();
     const chats = result?.data || [];
 
 

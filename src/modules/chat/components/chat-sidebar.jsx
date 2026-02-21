@@ -217,7 +217,7 @@ const ChatSidebar = ({ user, chats }) => {
       <div className="p-4 flex items-center gap-3 border-t border-sidebar-border">
         <UserButton user={user} />
         <span className="flex-1 text-sm text-sidebar-foreground truncate">
-          {user.email}
+          {user?.email}
         </span>
       </div>
 

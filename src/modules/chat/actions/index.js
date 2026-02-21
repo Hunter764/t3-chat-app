@@ -53,7 +53,7 @@ export const createChatWithMessage = async (values) => {
     }
 }
 
-export const getAllChates = async() => {
+export const getAllChats = async() => {
     try{
         const user = await currentUser();
         if(!user){

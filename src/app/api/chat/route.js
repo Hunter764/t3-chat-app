@@ -61,10 +61,10 @@ export async function POST(req){
 
         const allUIMessages = [...uiMessages, ...normalizeNewMessages];
 
-        let modelMessages ;
+        let modelMessages;
 
         try{
-            modelMessages = convertToModelMessages(allUIMessages);
+            modelMessages = await convertToModelMessages(allUIMessages);
         }catch(conversionError){
             modelMessages = allUIMessages.map(msg => ({
                 role: msg.role,
@@ -78,14 +78,8 @@ export async function POST(req){
         const result = streamText({
             model: provider.chat(model),
             messages: modelMessages,
-            system: CHAT_SYSTEM_PROMPT
-        });
-
-        return result.toUIMessageStream({
-            sendReasoning: true,
-            originalMessages: allUIMessages,
-
-            onFinish: async ({responseMessage}) =>{
+            system: CHAT_SYSTEM_PROMPT,
+            onFinish: async ({text, reasoning}) =>{
                 try{
                     const messagesToSave = [];
 
@@ -105,8 +99,13 @@ export async function POST(req){
                         }
                     }
 
-                    if(responseMessage?.parts && responseMessage.parts.length > 0){
-                        const assistantPartsJSON = extractPartsAsJSON(responseMessage);
+                    // Save assistant response
+                    if(text){
+                        const parts = [];
+                        if(text) parts.push({type: "text", text});
+                        if(reasoning) parts.push({type: "reasoning", reasoning});
+
+                        const assistantPartsJSON = JSON.stringify(parts);
 
                         messagesToSave.push({
                             chatId,
@@ -128,6 +127,8 @@ export async function POST(req){
                 }
             },
         });
+
+        return result.toTextStreamResponse();
     }catch(error){
         console.error("❌ API  Route error:", error);
         return new Response(
