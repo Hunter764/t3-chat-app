@@ -6,7 +6,14 @@ import { authClient } from '@/lib/auth';
 
 export function NeonAuthProvider({ children }) {
   return (
-    <NeonAuthUIProvider emailOTP authClient={authClient}>
+    <NeonAuthUIProvider 
+      emailOTP 
+      authClient={authClient}
+      viewPaths={{
+        SIGN_IN: '/auth/sign-in',
+        SIGN_UP: '/auth/sign-up',
+      }}
+    >
       {children}
     </NeonAuthUIProvider>
   );

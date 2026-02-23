@@ -1,6 +1,6 @@
 "use client";;
 import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { memo, useMemo } from "react";
 
 const ShimmerComponent = ({
@@ -10,7 +10,7 @@ const ShimmerComponent = ({
   duration = 2,
   spread = 2
 }) => {
-  const MotionComponent = motion.create(Component);
+  const MotionComponent = motion(Component);
 
   const dynamicSpread = useMemo(() => (children?.length ?? 0) * spread, [children, spread]);
 
