@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { signOut } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 
@@ -36,10 +36,10 @@ export default function UserButton({
   const router = useRouter();
 
    const onSignOut = async()=>{
-    await signOut({
+    await authClient.signOut({
       fetchOptions:{
         onSuccess:()=>{
-          router.push("/sign-in")
+          router.push("/auth")
         }
       }
     })
