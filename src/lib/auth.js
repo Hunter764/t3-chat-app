@@ -1,17 +1,5 @@
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
-import db from "./db";
-import { PrismaClient } from "@prisma/client";
+import { createAuthClient } from '@neondatabase/neon-js/auth';
 
-
-export const auth = betterAuth({
-    database: prismaAdapter(db, {
-        provider: "postgresql", 
-    }),
-    socialProviders:{
-        github:{
-            clientId: process.env.GITHUB_CLIENT_ID,
-            clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        }
-    }
-});
+export const authClient = createAuthClient(
+  process.env.NEXT_PUBLIC_NEON_AUTH_URL
+);

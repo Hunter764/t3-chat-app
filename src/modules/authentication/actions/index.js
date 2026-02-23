@@ -1,14 +1,11 @@
 "use server"
 
 import db from "@/lib/db"
-import {auth } from "@/lib/auth";
-import {headers} from "next/headers";
+import { auth } from "@/lib/auth-server";
 
 export const currentUser = async () => {
     try{
-        const session = await auth.api.getSession({
-            headers:await headers()
-        });
+        const { data: session } = await auth.getSession();
 
         if(!session?.user?.id){
             return null;

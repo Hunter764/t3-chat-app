@@ -21,6 +21,7 @@ export const metadata = {
     icon: '/chat-icon.svg',
   },
 };
+import { NeonAuthProvider } from "@/components/providers/neon-auth-provider";
 
 export default function RootLayout({ children }) {
   return (
@@ -29,15 +30,17 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-          <Toaster/>
-            {children}
-          </ThemeProvider>
+          <NeonAuthProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+            <Toaster/>
+              {children}
+            </ThemeProvider>
+          </NeonAuthProvider>
         </QueryProvider>
       </body>
     </html>
