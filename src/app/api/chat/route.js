@@ -98,6 +98,8 @@ export async function POST(req){
         return result.toUIMessageStreamResponse({
             originalMessages: uiMessages,
             sendReasoning: true,
+            // Lets the UI label the answer with the model that wrote it.
+            messageMetadata: ({ part }) => (part.type === "start" ? { model } : undefined),
             onFinish: async ({ responseMessage }) => {
                 try{
                     // The user message / delete must land before the answer, to keep the order.
