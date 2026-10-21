@@ -114,9 +114,10 @@ const ChatSidebar = ({ user, chats, onNavigate }) => {
           onClick={onNavigate}
           aria-current={chat.id === activeChatId ? "page" : undefined}
           className={cn(
-            "block truncate rounded-md px-2.5 py-2 pr-9 text-sm text-sidebar-foreground/80 transition-colors duration-150",
+            "relative block truncate rounded-md px-2.5 py-2 pr-9 text-sm text-sidebar-foreground/75 transition-colors duration-150",
             "hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            chat.id === activeChatId && "bg-sidebar-accent font-medium text-sidebar-foreground",
+            chat.id === activeChatId &&
+              "bg-sidebar-accent font-medium text-sidebar-foreground before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-brand",
           )}
         >
           {chat.title}

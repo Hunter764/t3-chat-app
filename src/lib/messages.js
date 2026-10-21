@@ -35,6 +35,7 @@ export function storedMessageToUI(msg) {
     id: msg.id,
     role: msg.messageRole.toLowerCase(),
     parts,
+    metadata: msg.model ? { model: msg.model } : undefined,
   };
 }
 

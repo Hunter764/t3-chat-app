@@ -45,68 +45,82 @@ const CHAT_TAB_MESSAGE = [
     ],
   },
 ];
+const greetingFor = (date) => {
+  const hour = date.getHours();
+  if (hour < 5) return "Up late";
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+};
+
 const ChatWelcomeTabs = ({ userName, onMessageSelect }) => {
   const [activeTab, setActiveTab] = useState(0);
   const introRef = useRef(null);
   const listRef = useRef(null);
 
-  // Intro lines rise in once; suggestions re-stagger whenever the category changes.
-  useReveal(introRef, "[data-reveal]", { y: 10, step: 70 });
-  useReveal(listRef, "[data-suggestion]", { y: 6, step: 45, duration: 360 }, activeTab);
+  // Intro lines rise in once; prompt cards re-stagger whenever the category changes.
+  useReveal(introRef, "[data-reveal]", { y: 12, step: 80, duration: 520 });
+  useReveal(listRef, "[data-suggestion]", { y: 10, step: 55, duration: 420 }, activeTab);
+
+  // Rendered in the visitor's local time; the server's guess may differ, hence the
+  // suppressHydrationWarning on the two time-dependent texts.
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  const firstName = userName?.split(" ")[0];
+  const tab = CHAT_TAB_MESSAGE[activeTab];
 
   return (
     <div className="flex w-full flex-col items-center justify-center px-5 py-10 sm:px-6">
       <div className="w-full max-w-2xl space-y-10">
-        <div ref={introRef} className="space-y-3">
-          <p data-reveal className="label-mono">New chat</p>
-          <h1 data-reveal className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            How can I help you today
-            {userName && (
-              <span className="text-muted-foreground">, {userName.split(' ')[0]}</span>
-            )}
-            ?
+        <div ref={introRef} className="space-y-4">
+          <p data-reveal suppressHydrationWarning className="label-mono">
+            {dateLabel} · New chat
+          </p>
+          <h1 data-reveal className="font-serif text-5xl font-normal leading-[0.95] tracking-tight sm:text-6xl">
+            <span suppressHydrationWarning>{greetingFor(now)}</span>,
+            <br />
+            <em>{firstName || "friend"}.</em>
           </h1>
-          <p data-reveal className="text-base text-muted-foreground">
-            Pick a starting point, or just write your message below.
+          <p data-reveal className="max-w-md text-base leading-relaxed text-muted-foreground">
+            Ask anything. Start from one of these, or write your own below — every model is a click away.
           </p>
         </div>
 
         <div className="space-y-4">
-          <div
-            role="tablist"
-            aria-label="Prompt categories"
-            className="grid w-full grid-cols-4 gap-1 rounded-lg border border-border bg-card p-1 shadow-xs sm:inline-flex sm:w-auto"
-          >
-            {CHAT_TAB_MESSAGE.map((tab, index) => (
+          <div role="tablist" aria-label="Prompt categories" className="flex flex-wrap gap-1.5">
+            {CHAT_TAB_MESSAGE.map((item, index) => (
               <button
-                key={tab.tabName}
+                key={item.tabName}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === index}
                 onClick={() => setActiveTab(index)}
                 className={cn(
-                  "inline-flex h-8 items-center justify-center gap-2 rounded-md px-2 text-sm font-medium transition-colors duration-150 sm:px-3",
+                  "inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors duration-150 [&_svg]:size-3.5",
                   activeTab === index
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border-strong text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
-                <span className="hidden sm:inline-flex">{tab.icon}</span>
-                {tab.tabName}
+                {item.icon}
+                {item.tabName}
               </button>
             ))}
           </div>
 
-          <ul ref={listRef} className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {CHAT_TAB_MESSAGE[activeTab].messages.map((message) => (
+          <ul ref={listRef} className="grid gap-3 sm:grid-cols-2">
+            {tab.messages.map((message, index) => (
               <li key={message} data-suggestion>
                 <button
                   type="button"
                   onClick={() => onMessageSelect(message)}
-                  className="group flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left text-sm transition-colors duration-150 hover:bg-accent"
+                  className="group flex h-full w-full flex-col gap-3 rounded-xl border border-border-strong bg-card p-4 text-left shadow-press transition-[transform,box-shadow,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:bg-popover hover:shadow-md active:translate-y-0 active:shadow-none"
                 >
-                  <span className="line-clamp-2">{message}</span>
-                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:opacity-100" />
+                  <span className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                    {tab.tabName} · 0{index + 1}
+                    <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </span>
+                  <span className="text-[15px] leading-snug">{message}</span>
                 </button>
               </li>
             ))}

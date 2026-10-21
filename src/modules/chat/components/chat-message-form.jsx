@@ -54,7 +54,7 @@ const ChatMessageForm = ({ initialMessage }) => {
   return (
     <div className="mx-auto w-full max-w-2xl">
       <form onSubmit={handleSubmit}>
-        <div className="rounded-xl border border-border bg-card shadow-sm transition-shadow duration-200 focus-within:border-ring focus-within:shadow-md">
+        <div className="rounded-2xl border border-border-strong bg-card shadow-press transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:shadow-md">
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -97,7 +97,7 @@ const ChatMessageForm = ({ initialMessage }) => {
             </Button>
           </div>
         </div>
-        <p className="mt-2 hidden text-center text-xs text-muted-foreground sm:block">
+        <p className="mt-2 hidden text-center font-mono text-[11px] text-muted-foreground sm:block">
           Enter to send · Shift + Enter for a new line
         </p>
       </form>

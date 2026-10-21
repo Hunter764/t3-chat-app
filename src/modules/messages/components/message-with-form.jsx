@@ -2,7 +2,7 @@
 import React from 'react'
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Fragment, useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import {
   Reasoning,
@@ -14,11 +14,9 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputBody,
-  PromptInputButton,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
@@ -32,8 +30,10 @@ import { useAIModels } from "@/modules/ai-agent/hook/ai-agent";
 import { useChatStore } from "@/modules/chat/store/chat-store";
 import { storedMessageToUI } from "@/lib/messages";
 import { useSearchParams } from "next/navigation";
+import { Logo } from "@/components/brand/logo";
+import { cn } from "@/lib/utils";
 
-import { RotateCcwIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, RotateCcwIcon } from "lucide-react";
 import { reveal } from "@/lib/motion";
 
 // Messages that arrive after the page loaded rise in; the loaded history just appears.
@@ -46,7 +46,58 @@ const MessageEnter = ({ animate, children }) => {
     return () => animation?.revert();
   }, [animate]);
 
-  return <div ref={ref} className="flex flex-col gap-4">{children}</div>;
+  return <div ref={ref}>{children}</div>;
+};
+
+const AssistantMark = () => (
+  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-card shadow-press [&_svg]:size-4">
+    <Logo showWordmark={false} />
+  </span>
+);
+
+// 3x3 grid of blinking pixels: the retro "thinking" indicator.
+const PixelLoader = () => (
+  <span className="grid grid-cols-3 gap-[2px]" aria-hidden="true">
+    {[0, 1, 2, 5, 8, 7, 6, 3, 4].map((order, i) => (
+      <span
+        key={i}
+        className="animate-pixel size-[5px] rounded-[1px] bg-foreground"
+        style={{ animationDelay: `${order * 110}ms` }}
+      />
+    ))}
+  </span>
+);
+
+const ActionButton = ({ label, onClick, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3.5"
+  >
+    {children}
+  </button>
+);
+
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <ActionButton
+      label={copied ? "Copied" : "Copy"}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          // Clipboard can be unavailable (permissions / insecure context): nothing to do.
+        }
+      }}
+    >
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </ActionButton>
+  );
 };
 
 const ChatConversation = ({ chat }) => {
@@ -126,78 +177,113 @@ const ChatConversation = ({ chat }) => {
   };
 
   const handleRetry = () => {
-    if (!selectedModel) return;
+    if (!selectedModel || isBusy) return;
     regenerate({ body: { model: selectedModel } });
   };
+
+  const modelNames = useMemo(
+    () => new Map((models?.models ?? []).map((m) => [m.id, m.name.split(": ").at(-1)])),
+    [models]
+  );
+  const labelFor = (id) => (id ? modelNames.get(id) ?? id : "Assistant");
+  const lastMessageId = messages.at(-1)?.id;
 
   return (
     <div className='flex h-full min-h-0 flex-col'>
       <Conversation className="min-h-0">
-        <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 py-6 sm:px-6">
-          {
-            messages.length === 0 ? (
-              <p className='py-24 text-center text-sm text-muted-foreground'>
-                Start a conversation…
-              </p>
-            ):(
-              messages.map((message)=>(
-                <MessageEnter key={message.id} animate={!loadedIds.has(message.id)}>
-                  {
-                    message.parts.map((part,i)=>{
-                      switch(part.type){
-                        case "text":
-                          return(
-                            <Message from ={message.role} key={`${message.id}-${i}`}>
-                              <MessageContent className="text-[15px] leading-relaxed group-[.is-user]:rounded-2xl group-[.is-user]:px-4 group-[.is-user]:py-2.5">
-                                <Response>
-                                  {part.text}
-                                </Response>
-                              </MessageContent>
-                            </Message>
-                          );
+        <ConversationContent className="mx-auto w-full max-w-3xl gap-8 px-4 py-8 sm:px-6">
+          {messages.map((message) => {
+            const animateIn = !loadedIds.has(message.id);
 
-                        case "reasoning":
-                          return(
-                            <Reasoning className="w-full max-w-2xl rounded-lg border border-border bg-card px-3.5 py-2.5"
-                              key={`${message.id}-${i}`}
-                              isStreaming={status === "streaming" && part.state === "streaming"}
-                            >
-                              <ReasoningTrigger/>
-
-                              <ReasoningContent className="mt-2 text-sm text-muted-foreground">
-                                {part.text}
-                              </ReasoningContent>
-                            </Reasoning>
-                          );
-
-                        default:
-                          return null;
-                      }
-                    })
-                  }
+            if (message.role === "user") {
+              const text = message.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+              return (
+                <MessageEnter key={message.id} animate={animateIn}>
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl rounded-br-md border border-border bg-secondary px-4 py-2.5 text-[15px] leading-relaxed text-secondary-foreground">
+                      <Response>{text}</Response>
+                    </div>
+                  </div>
                 </MessageEnter>
-              ) )
-            )
-          }
-          {
-            status === "submitted" &&(
-              <div role="status" className='flex items-center gap-2 font-mono text-xs text-muted-foreground'>
-                <span className="flex gap-1" aria-hidden="true">
-                  <span className="size-1.5 animate-pulse rounded-full bg-current" />
-                  <span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
-                  <span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
-                </span>
-                Thinking
-              </div>
-            )
-          }
-          {
-            error && (
-              <div role="alert" className='rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
-                {error.message || "Something went wrong while generating a response."}
-              </div>
-            )
-          }
+              );
+            }
+
+            const isLast = message.id === lastMessageId;
+            const streamingThis = isLast && status === "streaming";
+            const text = message.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n\n");
+
+            return (
+              <MessageEnter key={message.id} animate={animateIn}>
+                <div className="group/msg flex gap-3">
+                  <AssistantMark />
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <p className="pt-1 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                      {labelFor(message.metadata?.model ?? chat.model)}
+                    </p>
+
+                    {message.parts.map((part, i) => {
+                      if (part.type === "reasoning") {
+                        return (
+                          <Reasoning
+                            key={`${message.id}-${i}`}
+                            className="w-full rounded-xl border border-dashed border-border-strong bg-card/60 px-3.5 py-2.5"
+                            isStreaming={streamingThis && part.state === "streaming"}
+                          >
+                            <ReasoningTrigger className="font-mono text-xs" />
+                            <ReasoningContent className="mt-2 text-sm text-muted-foreground">
+                              {part.text}
+                            </ReasoningContent>
+                          </Reasoning>
+                        );
+                      }
+                      if (part.type === "text") {
+                        return (
+                          <div key={`${message.id}-${i}`} className="text-[15px] leading-relaxed">
+                            <Response>{part.text}</Response>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+
+                    {streamingThis && (
+                      <span aria-hidden="true" className="animate-caret inline-block h-4 w-2 translate-y-0.5 bg-foreground" />
+                    )}
+
+                    {!streamingThis && text && (
+                      <div className="flex items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover/msg:opacity-100 md:focus-within:opacity-100">
+                        <CopyButton text={text} />
+                        {isLast && !isBusy && (
+                          <ActionButton label="Regenerate" onClick={handleRetry}>
+                            <RotateCcwIcon />
+                          </ActionButton>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </MessageEnter>
+            );
+          })}
+
+          {status === "submitted" && (
+            <div role="status" className="flex items-center gap-3">
+              <AssistantMark />
+              <span className="flex items-center gap-2.5 font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                <PixelLoader />
+                Thinking · {labelFor(selectedModel)}
+              </span>
+            </div>
+          )}
+
+          {error && (
+            <div role="alert" className="flex items-start justify-between gap-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <span>{error.message || "Something went wrong while generating a response."}</span>
+              <button type="button" onClick={handleRetry} className="shrink-0 font-mono text-xs underline underline-offset-4">
+                Try again
+              </button>
+            </div>
+          )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
@@ -205,36 +291,37 @@ const ChatConversation = ({ chat }) => {
       <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-4 sm:px-6 sm:pb-5">
         <PromptInput
           onSubmit={handleSubmit}
-          className="[&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-border [&_[data-slot=input-group]]:bg-card! [&_[data-slot=input-group]]:shadow-sm"
+          className={cn(
+            "[&_[data-slot=input-group]]:rounded-2xl [&_[data-slot=input-group]]:border-border-strong [&_[data-slot=input-group]]:bg-card! [&_[data-slot=input-group]]:shadow-press",
+            "[&_[data-slot=input-group]]:transition-shadow has-[textarea:focus-visible]:[&_[data-slot=input-group]]:border-ring"
+          )}
         >
           <PromptInputBody>
             <PromptInputTextarea
-              placeholder="Message t3.chat…"
+              placeholder="Reply to t3.chat…"
               aria-label="Message"
+              className="text-[15px]"
             />
           </PromptInputBody>
           <PromptInputFooter>
-            <PromptInputTools className={"flex items-center gap-2"}>
-              {
-                isModelLoading || !models?.models ? (<Spinner className="ml-2 size-4"/>) : (<ModelSelector
+            <PromptInputTools className="flex min-w-0 items-center gap-2">
+              {isModelLoading || !models?.models ? (
+                <Spinner className="ml-2 size-4" />
+              ) : (
+                <ModelSelector
                   models={models?.models}
                   selectedModelId={selectedModel}
                   onModelSelect={setSelectedModel}
-                />)
-              }
-              {
-                !isBusy && messages.length > 0 && (
-                  <PromptInputButton onClick={handleRetry}>
-                    <RotateCcwIcon size ={14}/>
-                    <span>Retry</span>
-                  </PromptInputButton>
-                )
-              }
+                />
+              )}
             </PromptInputTools>
 
-            <PromptInputSubmit status={status} onStop={stop}/>
+            <PromptInputSubmit status={status} onStop={stop} className="rounded-lg" />
           </PromptInputFooter>
         </PromptInput>
+        <p className="mt-2 hidden text-center font-mono text-[11px] text-muted-foreground sm:block">
+          Enter to send · Shift + Enter for a new line
+        </p>
       </div>
     </div>
   )
@@ -243,7 +330,7 @@ const ChatConversation = ({ chat }) => {
 const MessageWithForm = ({chat, notFoundMessage}) => {
   if(!chat){
     return (
-      <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
+      <div className='flex h-full items-center justify-center font-mono text-sm text-muted-foreground'>
         {notFoundMessage || "Chat not found"}
       </div>
     )
