@@ -22,7 +22,7 @@ const Modal= ({
   cancelText = 'Cancel',
   showFooter = true,
   submitVariant = "default",
-  size,
+  size = '',
   className = ''
 }) => {
   const handleSubmit = () => {
@@ -57,7 +57,7 @@ const Modal= ({
             </Button>
             {onSubmit && (
               <Button
-                className='bg-primary text-primary-foreground hover:bg-primary/90'
+                variant={submitVariant}
                 onClick={handleSubmit}
               >
                 {submitText}

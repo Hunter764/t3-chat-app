@@ -4,6 +4,7 @@ A modern, full-stack AI chat application built with Next.js 16, featuring multi-
 
 ## Table of Contents
 
+- [Getting Started](#getting-started)
 - [Overview](#overview)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
@@ -12,17 +13,30 @@ A modern, full-stack AI chat application built with Next.js 16, featuring multi-
 - [Architecture](#architecture)
 - [Contributing](#contributing)
 
+## Getting Started
+
+Requirements: Node.js 20+, a Postgres database (Neon, or `docker compose up -d` for a local one), a Neon Auth project, and an [OpenRouter](https://openrouter.ai/keys) API key.
+
+```bash
+npm install
+cp .env.example .env      # then fill in the values (see comments in the file)
+npm run db:migrate        # apply Prisma migrations
+npm run dev               # http://localhost:3000
+```
+
+Other scripts: `npm run build`, `npm run start`, `npm run lint`, `npm run db:migrate:dev` (create a new migration).
+
 ## Overview
 
-T3 Chat is a modern AI chat application that provides seamless access to multiple AI models through OpenRouter integration. Built with Next.js 16 and the Vercel AI SDK, it features real-time streaming responses, persistent chat history, and GitHub OAuth authentication. The application demonstrates best practices for full-stack development with Next.js App Router, Prisma ORM, and Better Auth.
+T3 Chat is a modern AI chat application that provides seamless access to multiple AI models through OpenRouter integration. Built with Next.js 16 and the Vercel AI SDK, it features real-time streaming responses, persistent chat history, and Neon Auth authentication. The application demonstrates best practices for full-stack development with Next.js App Router, Prisma ORM, and Neon Auth.
 
 ## Features
 
 ### Authentication & Security
-- **Better-Auth Integration** - Industry-standard authentication system with session management
-- **OAuth Support** - GitHub OAuth integration with extensible provider architecture
+- **Neon Auth Integration** - Managed authentication (Better Auth based) with session management
+- **OAuth Support** - Social providers can be enabled in the Neon Auth console
 - **Custom Authentication Pages** - Branded sign-in and registration flows
-- **Protected Routes** - Role-based access control and secure session handling
+- **Protected Routes** - Pages are guarded by `src/proxy.js` and per-user data access checks
 
 ### Chat Interface
 - **Real-time Chat** - Responsive, interactive messaging interface
@@ -65,8 +79,8 @@ T3 Chat is a modern AI chat application that provides seamless access to multipl
 ### Backend
 - **Next.js API Routes** - Serverless API endpoints with streaming support
 - **OpenRouter AI SDK 2.0** - Multi-model AI provider integration
-- **Better-Auth 1.4** - Modern authentication library with OAuth support
-- **Prisma 7.2** - Next-generation ORM with type safety and migrations
+- **Neon Auth** - Managed authentication via `@neondatabase/neon-js`
+- **Prisma 6.19** - ORM with type safety and migrations
 - **PostgreSQL** - Advanced open-source relational database
 - **pg 8.16** - PostgreSQL client for Node.js
 
@@ -97,8 +111,8 @@ t3-chat/
 │   │   └── ui/              # Reusable UI components
 │   ├── hooks/               # Custom React hooks
 │   ├── lib/                 # Utility functions
-│   │   ├── auth.js          # Auth configuration
-│   │   ├── auth-client.js   # Client-side auth
+│   │   ├── auth-server.js   # Neon Auth server instance
+│   │   ├── auth.js          # Neon Auth browser client
 │   │   ├── db.js            # Database client
 │   │   └── utils.js         # Helper functions
 │   └── modules/
@@ -120,7 +134,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Server Components** - Default server-side rendering for optimal performance
 - **API Routes** - RESTful API endpoints in `/app/api`
 - **Database Layer** - Prisma ORM with PostgreSQL for data persistence
-- **Authentication Layer** - Better-Auth with session management
+- **Authentication Layer** - Neon Auth with session management (users live in the `neon_auth` schema, chats reference them by id)
 - **Component Library** - Reusable UI components with Shadcn/ui
 
 ### Key Architectural Decisions
@@ -150,7 +164,7 @@ Please ensure your code adheres to the existing style and passes all linting che
 - [Vercel AI SDK](https://sdk.vercel.ai/) - AI Streaming Interface
 - [OpenRouter](https://openrouter.ai/) - AI Model Gateway
 - [Shadcn/ui](https://ui.shadcn.com/) - Component System
-- [Better-Auth](https://www.better-auth.com/) - Authentication Library
+- [Neon Auth](https://neon.com/docs/auth/overview) - Authentication
 - [Prisma](https://www.prisma.io/) - Database ORM
 - [Tailwind CSS](https://tailwindcss.com/) - CSS Framework
 - [Radix UI](https://www.radix-ui.com/) - UI Primitives

@@ -2,32 +2,17 @@
 
 import { useEffect } from "react";
 import { useChatStore } from "@/modules/chat/store/chat-store";
-import { useGetChatById } from "@/modules/chat/hooks/chat";
 
+// Keeps the sidebar highlight in sync with the chat that is open.
 const ActiveChatLoader = ({chatId}) => {
-    const {setActiveAChatId, setMessages, addChat, chats} = useChatStore();
-
-    const {data} = useGetChatById(chatId);
+    const setActiveAChatId = useChatStore((state) => state.setActiveAChatId);
 
     useEffect(()=>{
         if(!chatId) return;
 
         setActiveAChatId(chatId);
+        return () => setActiveAChatId(null);
     }, [chatId, setActiveAChatId]);
-
-    useEffect(() => {
-        if(!data || !data.success || !data.data) return;
-
-        const chat = data.data;
-
-        //populate messages
-        setMessages(chat.messages || []);
-
-        if(!chats.some((c) => c.id === chat.id)){
-            addChat(chat);
-        }
-    }, [data, setMessages, addChat, chats]);
-    
 
     return null;
 }

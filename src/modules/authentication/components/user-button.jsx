@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { authClient } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 
@@ -35,14 +34,16 @@ export default function UserButton({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+   // Plain request to our own auth proxy: no need to ship the auth client to every page.
    const onSignOut = async()=>{
-    await authClient.signOut({
-      fetchOptions:{
-        onSuccess:()=>{
-          router.push("/auth")
-        }
-      }
+    const res = await fetch("/api/auth/sign-out", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
     })
+    if(!res.ok) throw new Error("Sign out failed")
+    router.push("/auth")
+    router.refresh()
   }
 
   const handleLogout = async () => {
@@ -99,7 +100,7 @@ export default function UserButton({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className={`relative ${avatarSizes[size]} rounded-full p-0 hover:bg-accent`}
+          className={`relative ${avatarSizes[size]} shrink-0 rounded-full p-0 hover:bg-accent`}
           disabled={isLoading}
         >
           <Avatar className={avatarSizes[size]}>
@@ -107,7 +108,7 @@ export default function UserButton({
               src={user.image || ""}
               alt={user.name || "User avatar"}
             />
-            <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-medium">
               {getUserInitials(user.name, user.email)}
             </AvatarFallback>
           </Avatar>
@@ -131,7 +132,7 @@ export default function UserButton({
                   src={user.image || ""}
                   alt={user.name || "User avatar"}
                 />
-                <AvatarFallback className="bg-primary text-primary-foreground font-medium text-lg">
+                <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
                   {getUserInitials(user.name, user.email)}
                 </AvatarFallback>
               </Avatar>
@@ -151,7 +152,7 @@ export default function UserButton({
                 )}
               </div>
             </div>
-            {showMemberSince && (
+            {showMemberSince && user.createdAt && (
               <p className="text-xs text-muted-foreground">
                 Member since {formatMemberSince(user.createdAt)}
               </p>
@@ -178,7 +179,7 @@ export default function UserButton({
         {onSettings && (
           <DropdownMenuItem onClick={onSettings} className="cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            Account settings
           </DropdownMenuItem>
         )}
         

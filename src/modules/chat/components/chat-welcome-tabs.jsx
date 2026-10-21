@@ -1,8 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Code, GraduationCap, Newspaper, Sparkles } from "lucide-react";
-import React, { useState } from "react";
+import { ArrowUpRight, Code, GraduationCap, Newspaper, Sparkles } from "lucide-react";
+import React, { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useReveal } from "@/lib/motion";
 
 const CHAT_TAB_MESSAGE = [
   {
@@ -48,59 +47,70 @@ const CHAT_TAB_MESSAGE = [
 ];
 const ChatWelcomeTabs = ({ userName, onMessageSelect }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const introRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Intro lines rise in once; suggestions re-stagger whenever the category changes.
+  useReveal(introRef, "[data-reveal]", { y: 10, step: 70 });
+  useReveal(listRef, "[data-suggestion]", { y: 6, step: 45, duration: 360 }, activeTab);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full px-6 py-8">
-      <div className="w-full max-w-3xl space-y-8">
-        {/* Welcome Header */}
-        <div className="space-y-3">
-          <h1 className="text-3xl font-bold tracking-tight">
+    <div className="flex w-full flex-col items-center justify-center px-5 py-10 sm:px-6">
+      <div className="w-full max-w-2xl space-y-10">
+        <div ref={introRef} className="space-y-3">
+          <p data-reveal className="label-mono">New chat</p>
+          <h1 data-reveal className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             How can I help you today
             {userName && (
-              <span className="text-primary">, {userName.split(' ')[0]}</span>
-            )}?
+              <span className="text-muted-foreground">, {userName.split(' ')[0]}</span>
+            )}
+            ?
           </h1>
-          <p className="text-base text-muted-foreground">
-            Choose a category or start typing your message below
+          <p data-reveal className="text-base text-muted-foreground">
+            Pick a starting point, or just write your message below.
           </p>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {CHAT_TAB_MESSAGE.map((tab, index) => (
-            <Button
-              key={tab.tabName}
-              variant={activeTab === index ? "default" : "outline"}
-              onClick={() => setActiveTab(index)}
-              className={cn(
-                "h-10 px-4 gap-2 font-medium transition-all",
-                activeTab === index && "shadow-sm"
-              )}
-            >
-              {tab.icon}
-              {tab.tabName}
-            </Button>
-          ))}
-        </div>
-
-        {/* Suggestions */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground px-1">
-            Suggestions
-          </h3>
-          <div className="grid gap-2">
-            {CHAT_TAB_MESSAGE[activeTab].messages.map((message, index) => (
+        <div className="space-y-4">
+          <div
+            role="tablist"
+            aria-label="Prompt categories"
+            className="grid w-full grid-cols-4 gap-1 rounded-lg border border-border bg-card p-1 shadow-xs sm:inline-flex sm:w-auto"
+          >
+            {CHAT_TAB_MESSAGE.map((tab, index) => (
               <button
-                key={index}
-                onClick={() => onMessageSelect(message)}
-                className="w-full text-left px-4 py-3.5 text-sm bg-card hover:bg-accent border border-border rounded-lg transition-colors group"
+                key={tab.tabName}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === index}
+                onClick={() => setActiveTab(index)}
+                className={cn(
+                  "inline-flex h-8 items-center justify-center gap-2 rounded-md px-2 text-sm font-medium transition-colors duration-150 sm:px-3",
+                  activeTab === index
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
               >
-                <span className="line-clamp-2 group-hover:text-foreground">
-                  {message}
-                </span>
+                <span className="hidden sm:inline-flex">{tab.icon}</span>
+                {tab.tabName}
               </button>
             ))}
           </div>
+
+          <ul ref={listRef} className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {CHAT_TAB_MESSAGE[activeTab].messages.map((message) => (
+              <li key={message} data-suggestion>
+                <button
+                  type="button"
+                  onClick={() => onMessageSelect(message)}
+                  className="group flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left text-sm transition-colors duration-150 hover:bg-accent"
+                >
+                  <span className="line-clamp-2">{message}</span>
+                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:opacity-100" />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

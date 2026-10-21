@@ -2,7 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,13 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "T3 Chat - AI Chat Application",
+  title: "t3.chat",
   description: "Modern AI-powered chat application built with Next.js",
   icons: {
     icon: '/chat-icon.svg',
   },
 };
-import { NeonAuthProvider } from "@/components/providers/neon-auth-provider";
 
 export default function RootLayout({ children }) {
   return (
@@ -30,17 +29,15 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <NeonAuthProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-            <Toaster/>
-              {children}
-            </ThemeProvider>
-          </NeonAuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Toaster position="bottom-right" />
+            {children}
+          </ThemeProvider>
         </QueryProvider>
       </body>
     </html>

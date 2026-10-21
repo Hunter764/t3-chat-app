@@ -6,10 +6,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
@@ -142,7 +138,7 @@ export const ReasoningContent = memo(({
       className
     )}
     {...props}>
-    <Streamdown plugins={{ code, mermaid, math, cjk }} {...props}>
+    <Streamdown {...props}>
       {children}
     </Streamdown>
   </CollapsibleContent>

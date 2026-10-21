@@ -1,13 +1,17 @@
 import {NextResponse } from 'next/server';
 
-export async function GET(req){
+export async function GET(){
     try{
+        // The model list is public; the key is only sent when configured.
+        const headers = { "Content-Type": "application/json" };
+        if(process.env.OPENROUTER_API_KEY){
+            headers.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`;
+        }
+
         const response = await fetch("https://openrouter.ai/api/v1/models",{
             method: 'GET',
-            headers:{
-                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json"
-            }
+            headers,
+            next: { revalidate: 3600 },
         });
 
         if(!response.ok){
@@ -15,30 +19,29 @@ export async function GET(req){
         }
         const data = await response.json();
 
-        // Enable Claude Haiku 4.5 and all other models for all clients
-        const allModels = data.data;
-
-        const formattedModels = allModels.map(model => ({
+        const formattedModels = data.data.map(model => ({
             id : model.id,
             name: model.name,
-            description: model.description,
+            // Long descriptions dominate the payload; the list clamps them to two lines anyway.
+            description: model.description?.length > 600 ? `${model.description.slice(0, 600).trimEnd()}…` : model.description,
             context_length: model.context_length,
             architecture: model.architecture,
             pricing: model.pricing,
             top_provider: model.top_provider,
-
         }))
 
-        return NextResponse.json({
-            models: formattedModels,
-        });
+        // Same list for everyone: let the browser and any CDN reuse it.
+        return NextResponse.json(
+            { models: formattedModels },
+            { headers: { "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400" } }
+        );
     }catch(error){
-        console.error("Error fetching free models:",error);
+        console.error("Error fetching models:",error);
 
         return NextResponse.json(
             {
                 success: false,
-                error: error.message || " Failed to fetch free models",
+                error: error.message || "Failed to fetch models",
             },
             {status: 500}
         );

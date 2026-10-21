@@ -1,8 +1,8 @@
 "use client"
 import React from 'react'
 import { useChat } from "@ai-sdk/react";
-import { useGetChatById } from "@/modules/chat/hooks/chat";
-import { Fragment, useState, useEffect, useMemo, useRef } from "react";
+import { DefaultChatTransport } from "ai";
+import { Fragment, useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import {
   Reasoning,
@@ -30,248 +30,226 @@ import { Spinner } from "@/components/ui/spinner";
 import { ModelSelector } from "@/modules/chat/components/model-selector";
 import { useAIModels } from "@/modules/ai-agent/hook/ai-agent";
 import { useChatStore } from "@/modules/chat/store/chat-store";
-import { useSearchParams, useRouter } from "next/navigation";
+import { storedMessageToUI } from "@/lib/messages";
+import { useSearchParams } from "next/navigation";
 
-import { RotateCcwIcon, StopCircleIcon } from "lucide-react";
+import { RotateCcwIcon } from "lucide-react";
+import { reveal } from "@/lib/motion";
 
+// Messages that arrive after the page loaded rise in; the loaded history just appears.
+const MessageEnter = ({ animate, children }) => {
+  const ref = useRef(null);
 
+  useLayoutEffect(() => {
+    if (!animate || !ref.current) return;
+    const animation = reveal(ref.current, { y: 8, step: 0, duration: 320 });
+    return () => animation?.revert();
+  }, [animate]);
 
+  return <div ref={ref} className="flex flex-col gap-4">{children}</div>;
+};
 
+const ChatConversation = ({ chat }) => {
+  const chatId = chat.id;
 
-const MessageWithForm = ({chatId}) => {
+  const { data: models, isPending: isModelLoading } = useAIModels();
+  const { hasChatBeenTriggered, markChatAsTriggered } = useChatStore();
 
-const { data: models, isPending: isModelLoading } = useAIModels();
-const { data, isPending } = useGetChatById(chatId);
-const { hasChatBeenTriggered, markChatAsTriggered } = useChatStore();
-
-const [selectedModel, setSelectedModel] = useState(data?.data?.model);
-const [input, setInput] = useState("");
+  const [selectedModel, setSelectedModel] = useState(chat.model);
 
   const hasAutoTriggered = useRef(false);
   const searchParams = useSearchParams();
-  const router = useRouter();
   const shouldAutoTrigger = searchParams.get("autoTrigger") === "true";
 
-  const initialMessages = useMemo(() => {
-    if (!data?.data?.messages) return [];
+  // Loaded once: useChat owns the message list from here on.
+  const [initialMessages] = useState(() =>
+    chat.messages.map(storedMessageToUI).filter(Boolean)
+  );
 
-    return data.data.messages
-      .filter((msg) => msg.content && msg.content.trim() !== "" && msg.id)
-      .map((msg) => {
-        try {
-          const parts = JSON.parse(msg.content);
+  // The server keeps the history in the database, so only the newest message is sent.
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest: ({ messages, body, trigger }) => ({
+          body: {
+            ...body,
+            chatId,
+            trigger,
+            message: trigger === "submit-message" ? messages.at(-1) : undefined,
+          },
+        }),
+      }),
+    [chatId]
+  );
 
-          return {
-            id: msg.id,
-            role: msg.messageRole.toLowerCase(),
-            parts: Array.isArray(parts)
-              ? parts
-              : [{ type: "text", text: msg.content }],
-            createdAt: msg.createdAt,
-          };
-        } catch (error) {
-          return {
-            id: msg.id,
-            role: msg.messageRole.toLowerCase(),
-            parts: [{ type: "text", text: msg.content }],
-            createdAt: msg.createdAt,
-          };
-        }
-      });
-  }, [data]);
+  const loadedIds = useMemo(() => new Set(initialMessages.map((m) => m.id)), [initialMessages]);
 
-  const {stop, messages, status, sendMessage, regenerate} = useChat({
-    initialMessages,
-    api:"/api/chat",
-    body: {
-      chatId,
-      model: selectedModel,
-    },
+  const { stop, messages, status, error, sendMessage, regenerate } = useChat({
+    id: chatId,
+    messages: initialMessages,
+    transport,
   });
 
-  useEffect(()=>{
-    if(data?.data?.model && !selectedModel){
-      setSelectedModel(data.data.model);
-    }
-  },[data, selectedModel])
-
+  // A chat created from the home page only has the user message: ask the model to answer it.
   useEffect(() => {
-    if(hasAutoTriggered.current) return;
-    if(!shouldAutoTrigger) return;
-    if(hasChatBeenTriggered(chatId)) return;
-    if(!selectedModel) return;
-    if(initialMessages.length === 0) return;
+    if (hasAutoTriggered.current) return;
+    if (!shouldAutoTrigger) return;
+    if (hasChatBeenTriggered(chatId)) return;
+    if (!selectedModel) return;
+    if (initialMessages.length === 0) return;
 
-    const lastMessage = initialMessages[initialMessages.length -1];
-
-    if(lastMessage.role !== "user") return;
+    if (initialMessages.at(-1).role !== "user") return;
 
     hasAutoTriggered.current = true;
     markChatAsTriggered(chatId);
 
-    sendMessage(
-      {text: ""},
-      {
-        body:{
-          model:selectedModel,
-          chatId,
-          skipUserMessage:true,
-        },
-      }
-    );
-    router.replace(`/chat/${chatId}`, {scroll:false})
-
-  },[
+    regenerate({ body: { model: selectedModel } });
+    // Drop ?autoTrigger without asking the server to render the page again.
+    window.history.replaceState(null, "", `/chat/${chatId}`);
+  }, [
     shouldAutoTrigger,
     chatId,
     selectedModel,
     initialMessages,
-    sendMessage,
-    router,
+    regenerate,
     hasChatBeenTriggered,
     markChatAsTriggered,
-  ])
+  ]);
 
-if(isPending){
-  return (
-    <div className='flex items-center justify-center h-full'>
-      <Spinner />
-    </div>
-  )
-}
+  const isBusy = status === "submitted" || status === "streaming";
 
-const handleSubmit = ()=>{
-  if(!input.trim()) return;
+  const handleSubmit = ({ text }) => {
+    if (!text?.trim() || isBusy || !selectedModel) return;
 
-  sendMessage(
-    {text:input},
-    {
-      body:{
-        model:selectedModel,
-        chatId
-      }
-    }
-  );
+    sendMessage({ text }, { body: { model: selectedModel } });
+  };
 
-  setInput("")
-}
-
-const handleRetry = () =>{
-  regenerate()
-}
-
-const handleStop =() => {
-  stop()
-}
-
-const messageToRender = [...initialMessages, ...messages]
-
-console.log("Messages to render:", messageToRender);
+  const handleRetry = () => {
+    if (!selectedModel) return;
+    regenerate({ body: { model: selectedModel } });
+  };
 
   return (
-    <div className='max-w-4xl mx-auto p-6 relative size-full h-[calc(100vh-4rem)]'>
-        <div className='flex flex-col h-full'>
-          <Conversation className={"h-full"}>
-            <ConversationContent>
-              {
-                messageToRender.length === 0 ? (<>
-                  <div className='flex items-center justify-center h-full text-gray-500'>
-                    Start a conversation ...
-                  </div>
-                </>):(
-                  messageToRender.map((message)=>(
-                    <Fragment key={message.id}>
-                      {
-                        message.parts.map((part,i)=>{
-                          switch(part.type){
-                            case "text":
-                              return(
-                                <Message from ={message.role} key={`${message.id}-${i}`}>
-                                  <MessageContent>
-                                    <Response>
-                                      {part.text}
-                                    </Response>
-                                  </MessageContent>
-                                </Message>
-                              );
+    <div className='flex h-full min-h-0 flex-col'>
+      <Conversation className="min-h-0">
+        <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 py-6 sm:px-6">
+          {
+            messages.length === 0 ? (
+              <p className='py-24 text-center text-sm text-muted-foreground'>
+                Start a conversation…
+              </p>
+            ):(
+              messages.map((message)=>(
+                <MessageEnter key={message.id} animate={!loadedIds.has(message.id)}>
+                  {
+                    message.parts.map((part,i)=>{
+                      switch(part.type){
+                        case "text":
+                          return(
+                            <Message from ={message.role} key={`${message.id}-${i}`}>
+                              <MessageContent className="text-[15px] leading-relaxed group-[.is-user]:rounded-2xl group-[.is-user]:px-4 group-[.is-user]:py-2.5">
+                                <Response>
+                                  {part.text}
+                                </Response>
+                              </MessageContent>
+                            </Message>
+                          );
 
-                              case "reasoning":
-                                return(
-                                  <Reasoning className="max-w-2xl px-4 py-4 border border-muted rounded-md bg-muted/50"
-                                key={`${message.id}-${i}`}
-                                >
-                                  <ReasoningTrigger/>
+                        case "reasoning":
+                          return(
+                            <Reasoning className="w-full max-w-2xl rounded-lg border border-border bg-card px-3.5 py-2.5"
+                              key={`${message.id}-${i}`}
+                              isStreaming={status === "streaming" && part.state === "streaming"}
+                            >
+                              <ReasoningTrigger/>
 
-                                  <ReasoningContent className="mt-2 italic font-light text-muted-foreground">
-                                    {part.text}
-                                  </ReasoningContent>
-                                </Reasoning>
-                                )
-                          }
-                        })
+                              <ReasoningContent className="mt-2 text-sm text-muted-foreground">
+                                {part.text}
+                              </ReasoningContent>
+                            </Reasoning>
+                          );
+
+                        default:
+                          return null;
                       }
-                    </Fragment>
-                  ) )
-                )
+                    })
+                  }
+                </MessageEnter>
+              ) )
+            )
+          }
+          {
+            status === "submitted" &&(
+              <div role="status" className='flex items-center gap-2 font-mono text-xs text-muted-foreground'>
+                <span className="flex gap-1" aria-hidden="true">
+                  <span className="size-1.5 animate-pulse rounded-full bg-current" />
+                  <span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
+                  <span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
+                </span>
+                Thinking
+              </div>
+            )
+          }
+          {
+            error && (
+              <div role="alert" className='rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
+                {error.message || "Something went wrong while generating a response."}
+              </div>
+            )
+          }
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
+
+      <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-4 sm:px-6 sm:pb-5">
+        <PromptInput
+          onSubmit={handleSubmit}
+          className="[&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-border [&_[data-slot=input-group]]:bg-card! [&_[data-slot=input-group]]:shadow-sm"
+        >
+          <PromptInputBody>
+            <PromptInputTextarea
+              placeholder="Message t3.chat…"
+              aria-label="Message"
+            />
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputTools className={"flex items-center gap-2"}>
+              {
+                isModelLoading || !models?.models ? (<Spinner className="ml-2 size-4"/>) : (<ModelSelector
+                  models={models?.models}
+                  selectedModelId={selectedModel}
+                  onModelSelect={setSelectedModel}
+                />)
               }
               {
-                status === "streaming" &&(
-                  <div className='flex items-center gap-2 text-muted-foreground'>
-                    <Spinner />
-                    <span className="text-sm">AI is thinking...</span>
-                  </div>
+                !isBusy && messages.length > 0 && (
+                  <PromptInputButton onClick={handleRetry}>
+                    <RotateCcwIcon size ={14}/>
+                    <span>Retry</span>
+                  </PromptInputButton>
                 )
               }
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
+            </PromptInputTools>
 
-          <PromptInput onSubmit={handleSubmit} className={"mt-4"}>
-              <PromptInputBody>
-                <PromptInputTextarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type your message..."
-                  // disabled={status === "streaming" }
-
-                />
-
-              
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools className={"flex items-center gap-2"}>
-                  {
-                    isModelLoading ? (<Spinner/>) : (<ModelSelector
-                      models={models?.models}
-                      selectedModelId={selectedModel}
-                      onModelSelect={setSelectedModel}
-                    />)
-                  }
-                  {
-                    status === "streaming" ? (
-                      <PromptInputButton onClick={handleStop}>
-                        <StopCircleIcon size ={16}/>
-                        <span>Stop</span>
-                      </PromptInputButton>
-                    ): (
-                      messageToRender.length > 0 && (
-                        <PromptInputButton onClick={handleRetry}>
-                          <RotateCcwIcon size ={16}/>
-                          <span>Retry</span>
-                        </PromptInputButton>
-                      )
-                    )
-                  }
-                </PromptInputTools>
-
-                <PromptInputSubmit status={status}/>
-              </PromptInputFooter>
-          </PromptInput>
-
-
-        </div>
+            <PromptInputSubmit status={status} onStop={stop}/>
+          </PromptInputFooter>
+        </PromptInput>
+      </div>
     </div>
   )
+}
+
+const MessageWithForm = ({chat, notFoundMessage}) => {
+  if(!chat){
+    return (
+      <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
+        {notFoundMessage || "Chat not found"}
+      </div>
+    )
+  }
+
+  return <ChatConversation key={chat.id} chat={chat} />
 }
 
 export default MessageWithForm

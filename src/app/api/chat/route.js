@@ -4,142 +4,132 @@ import db from "@/lib/db";
 import { MessageRole, MessageType } from "@prisma/client";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { CHAT_SYSTEM_PROMPT } from "@/lib/prompt";
+import { storedMessageToUI, textPartsOnly } from "@/lib/messages";
+import { currentUser } from "@/modules/authentication/actions";
 
+export const maxDuration = 60;
 
-//intialize OpenRouter SDK
-
-const provider = createOpenRouter({
-    apiKey:process.env.OPENROUTER_API_KEY
-})
-
-function convertStoredMessageToUI(msg){
-    try{
-        const parts = JSON.parse(msg.content);
-        const validParts = parts.filter(part => part.type === "text" || part.type === "reasoning")
-
-        if(validParts.length === 0) return null;
-
-        return {
-            id: msg.id,
-            role: msg.messageRole.toLowerCase(),
-            parts:validParts,
-            createdAt:msg.createdAt
-        }
-    }catch(error){
-        return{
-            id:msg.id,
-            role: msg.messageRole.toLowerCase(),
-            parts: [{type: "text", text:msg.content}],
-            createdAt: msg.createdAt,
-        };
-    }
-}
-
-function extractPartsAsJSON(message){
-    if(message.parts && Array.isArray(message.parts)){
-        return JSON.stringify(message.parts);
-    }
-
-    const content = message.content || "";
-    return JSON.stringify([{type: "text", text:content}]);
+function jsonError(message, status){
+    return Response.json({ error: message }, { status });
 }
 
 export async function POST(req){
     try{
-        const {chatId, messages: newMessages, model, skipUserMessage } = await req.json();
+        const user = await currentUser();
+        if(!user) return jsonError("Unauthorized", 401);
 
-        const previousMessages = chatId ? await db.message.findMany({
-            where:{chatId},
-            orderBy:{
-                createdAt:"asc"
-            }
-        }): [];
-
-        const uiMessages = previousMessages.map(convertStoredMessageToUI).filter(msg => msg !== null)
-
-        const normalizeNewMessages = Array.isArray(newMessages)? newMessages: [newMessages]
-
-        const allUIMessages = [...uiMessages, ...normalizeNewMessages];
-
-        let modelMessages;
-
-        try{
-            modelMessages = await convertToModelMessages(allUIMessages);
-        }catch(conversionError){
-            modelMessages = allUIMessages.map(msg => ({
-                role: msg.role,
-                content: msg.parts
-                .filter(p => p.type === "text")
-                .map(p=> p.text)
-                .join('\n')
-            })).filter(m => m.content);
+        if(!process.env.OPENROUTER_API_KEY){
+            return jsonError("OPENROUTER_API_KEY is not configured on the server", 500);
         }
+
+        const { chatId, model, trigger, message } = await req.json();
+
+        if(!chatId || !model){
+            return jsonError("chatId and model are required", 400);
+        }
+
+        // Ownership check and history load run together (one round trip). The history query
+        // is scoped to the owner too, so a chat that isn't theirs yields nothing.
+        const [chat, storedMessages] = await Promise.all([
+            db.chat.findFirst({ where: { id: chatId, userId: user.id }, select: { id: true } }),
+            db.message.findMany({
+                where:{ chatId, chat: { userId: user.id } },
+                orderBy:{ createdAt:"asc" }
+            }),
+        ]);
+        if(!chat) return jsonError("Chat not found", 404);
+
+        // Writes that don't affect the answer run while the model is already working.
+        let pendingWrite = Promise.resolve();
+
+        if(trigger === "submit-message"){
+            const parts = (message?.parts ?? []).filter(p => p.type === "text" && p.text?.trim());
+            if(message?.role !== "user" || parts.length === 0){
+                return jsonError("A non-empty user message is required", 400);
+            }
+
+            const content = JSON.stringify(parts.map(p => ({ type: "text", text: p.text })));
+            pendingWrite = db.message.create({
+                data:{
+                    chatId,
+                    content,
+                    messageRole: MessageRole.USER,
+                    messageType: MessageType.NORMAL,
+                    model,
+                }
+            });
+            // The history the model sees includes the new message right away.
+            storedMessages.push({ id: "pending-user-message", messageRole: MessageRole.USER, content });
+        }else if(trigger === "regenerate-message"){
+            // Retry: drop the previous answer, then answer the last user message again.
+            const last = storedMessages.at(-1);
+            if(last?.messageRole === MessageRole.ASSISTANT){
+                pendingWrite = db.message.delete({ where: { id: last.id } });
+                storedMessages.pop();
+            }
+        }else{
+            return jsonError("Unsupported trigger", 400);
+        }
+        // Never an unhandled rejection: a failed write is logged and the answer still streams.
+        const writeResult = pendingWrite.then(() => null, (error) => {
+            console.error("❌ Error saving the user message:", error);
+            return error;
+        });
+
+        const uiMessages = storedMessages
+            .map(storedMessageToUI)
+            .filter(msg => msg !== null)
+            .map(textPartsOnly)
+            .filter(msg => msg.parts.length > 0);
+
+        if(uiMessages.length === 0 || uiMessages.at(-1).role !== "user"){
+            return jsonError("Nothing to respond to", 400);
+        }
+
+        const provider = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
 
         const result = streamText({
             model: provider.chat(model),
-            messages: modelMessages,
             system: CHAT_SYSTEM_PROMPT,
-            onFinish: async ({text, reasoning}) =>{
+            messages: await convertToModelMessages(uiMessages),
+            abortSignal: req.signal,
+        });
+
+        return result.toUIMessageStreamResponse({
+            originalMessages: uiMessages,
+            sendReasoning: true,
+            onFinish: async ({ responseMessage }) => {
                 try{
-                    const messagesToSave = [];
+                    // The user message / delete must land before the answer, to keep the order.
+                    await writeResult;
 
-                    if(!skipUserMessage){
-                        const latestUserMessage = normalizeNewMessages[normalizeNewMessages.length -1];
+                    const parts = responseMessage.parts.filter(
+                        part => (part.type === "text" || part.type === "reasoning") && part.text?.trim()
+                    ).map(part => ({ type: part.type, text: part.text }));
 
-                        if(latestUserMessage?.role === "user"){
-                            const userPartsJSON = extractPartsAsJSON(latestUserMessage)
+                    if(!parts.some(part => part.type === "text")) return;
 
-                            messagesToSave.push({
-                                chatId,
-                                content: userPartsJSON,
-                                messageRole: MessageRole.USER,
-                                model,
-                                messageType: MessageType.NORMAL
-                            })
-                        }
-                    }
-
-                    // Save assistant response
-                    if(text){
-                        const parts = [];
-                        if(text) parts.push({type: "text", text});
-                        if(reasoning) parts.push({type: "reasoning", reasoning});
-
-                        const assistantPartsJSON = JSON.stringify(parts);
-
-                        messagesToSave.push({
+                    await db.message.create({
+                        data:{
                             chatId,
-                            content: assistantPartsJSON,
+                            content: JSON.stringify(parts),
                             messageRole: MessageRole.ASSISTANT,
-                            model,
                             messageType: MessageType.NORMAL,
-                        })
-                    }
-
-                    if(messagesToSave.length > 0){
-                        await db.message.createMany({
-                            data: messagesToSave
-                        })
-                    }
-
+                            model,
+                        }
+                    });
+                    await db.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });
                 }catch(error){
                     console.error("❌ Error saving messages:", error);
                 }
             },
+            onError: (error) => {
+                console.error("❌ Streaming error:", error);
+                return error?.message || "The model failed to respond";
+            },
         });
-
-        return result.toTextStreamResponse();
     }catch(error){
-        console.error("❌ API  Route error:", error);
-        return new Response(
-            JSON.stringify({
-                error: error.message || "Internal Server Error",
-                details: error.toString()
-            }),
-            {
-                status: 500,
-                headers:{"Content-Type":"application/json"}
-            }
-        )
+        console.error("❌ API Route error:", error);
+        return jsonError(error.message || "Internal Server Error", 500);
     }
 }

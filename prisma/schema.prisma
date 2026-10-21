@@ -24,7 +24,6 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-  chats         Chat[]
 
   @@unique([email])
   @@map("user")
@@ -77,19 +76,14 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
-model Test {
-  id String @id @default(uuid())
-  name String
 
-  desc String
-}
-
+// userId is the Neon Auth user id (neon_auth schema). It is intentionally not a
+// foreign key: Neon Auth users do not live in this schema's "user" table.
 model Chat{
   id String @id @default(cuid())
   title String
   model String
   userId String
-  user User @relation (fields:[userId], references: [id], onDelete: Cascade)
 
   messages Message[]
   createdAt DateTime @default(now())

@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { createChatWithMessage, deleteChat, getChatById } from "../actions";
+import { createChatWithMessage, deleteChat } from "../actions";
 import { toast } from "sonner";
 
 export const useCreateChat = () => {
@@ -12,12 +12,11 @@ export const useCreateChat = () => {
     mutationFn: (values) => createChatWithMessage(values),
     onSuccess: (res) => {
       if (res.success && res.data) {
-        // add optimistic ui
-        const chat = res.data;
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
 
-        queryClient.invalidateQueries(["chats"]);
-
-        router.push(`/chat/${chat.id}?autoTrigger=true`);
+        router.push(`/chat/${res.data.id}?autoTrigger=true`);
+      } else {
+        toast.error(res.message || "Failed to create chat");
       }
     },
     onError: (error) => {
@@ -31,22 +30,18 @@ export const useCreateChat = () => {
 export const useDeleteChat = (chatId)=>{
   const queryClient = useQueryClient();
 
-  const router = useRouter();
-
   return useMutation({
     mutationFn:()=>deleteChat(chatId),
-    onSuccess:()=>{
-      queryClient.invalidateQueries(["chats"])
+    onSuccess:(res)=>{
+      if(res.success){
+        queryClient.invalidateQueries({ queryKey: ["chats"] })
+        toast.success("Chat deleted")
+      }else{
+        toast.error(res.message || "Failed to delete chat")
+      }
     },
     onError:()=>{
       toast.error("Failed to delete chat")
     }
-  })
-}
-
-export const useGetChatById = (chatId)=>{
-  return useQuery({
-    queryKey:["chats" , chatId],
-    queryFn:()=>getChatById(chatId)
   })
 }

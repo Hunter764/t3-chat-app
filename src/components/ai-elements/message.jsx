@@ -11,10 +11,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
@@ -254,7 +250,6 @@ export const MessageResponse = memo(({
 }) => (
   <Streamdown
     className={cn("size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0", className)}
-    plugins={{ code, mermaid, math, cjk }}
     {...props} />
 ), (prevProps, nextProps) => prevProps.children === nextProps.children);
 
