@@ -19,6 +19,7 @@ const Toaster = ({
     <Sonner
       theme={theme}
       className="toaster group"
+      toastOptions={{ classNames: { toast: "!shadow-md !font-sans !text-sm" } }}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
@@ -31,7 +32,7 @@ const Toaster = ({
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)"
+          "--border-radius": "var(--radius-lg)"
         }
       }
       {...props} />

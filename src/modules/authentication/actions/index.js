@@ -1,32 +1,28 @@
-"use server"
-
-import db from "@/lib/db"
+import { cache } from "react";
 import { auth } from "@/lib/auth-server";
 
-export const currentUser = async () => {
+// Users live in Neon Auth (neon_auth schema), so the session is the source of truth.
+// Server-only helper (not a server action): wrapped in cache() so the layout, the page and
+// every data function in one request share a single session lookup.
+export const currentUser = cache(async () => {
     try{
         const { data: session } = await auth.getSession();
+        const user = session?.user;
 
-        if(!session?.user?.id){
+        if(!user?.id){
             return null;
         }
-        
-        const user = await db.user.findUnique({
-            where:{
-                id:session.user.id
-            },
-            select:{
-                id:true,
-                email:true,
-                image:true,
-                createdAt : true,
-                updatedAt: true,
 
-            }
-        });
-        return user;
+        return {
+            id: user.id,
+            name: user.name ?? null,
+            email: user.email ?? null,
+            image: user.image ?? null,
+            createdAt: user.createdAt ?? null,
+            updatedAt: user.updatedAt ?? null,
+        };
     }catch(error){
-        console.log("Error in currentUser action:",error);
+        console.error("Error in currentUser action:",error);
         return null;
     }
-}
+});

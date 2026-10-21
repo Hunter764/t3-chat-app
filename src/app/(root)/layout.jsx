@@ -1,10 +1,9 @@
 import React from 'react'
 import { redirect } from 'next/navigation';
-import ChatSidebar from '@/modules/chat/components/chat-sidebar';
+import { AppShell } from '@/components/app-shell';
 import { currentUser } from '@/modules/authentication/actions';
 import { getAllChats } from '@/modules/chat/actions';
 export const dynamic = 'force-dynamic';
-import Header from '@/modules/chat/components/header';
 
 const layout = async ({children}) => {
     const user = await currentUser();
@@ -15,17 +14,12 @@ const layout = async ({children}) => {
 
     const result = await getAllChats();
     const chats = result?.data || [];
-  return (
-    <div className='flex h-screen overflow-hidden'>
-        <ChatSidebar user={user} chats={chats}/>
-        <div className='flex flex-1 flex-col overflow-hidden'>
-            <Header/>
-            <main className='flex-1 overflow-hidden'>
-                {children}
-            </main>
-        </div>
-    </div>
-  )
+
+    return (
+      <AppShell user={user} chats={chats}>
+        {children}
+      </AppShell>
+    )
 }
 
 export default layout

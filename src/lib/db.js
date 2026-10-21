@@ -1,11 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 
-const db = globalThis.prisma || new PrismaClient({
-    log: ['query', 'error', 'warn', 'info'],
-});
+// Reuse one client across hot reloads in development.
+const db =
+  globalThis.prisma ||
+  new PrismaClient({
+    log: ["error", "warn"],
+  });
 
-if (process.env.NODE_ENV === "development") {
-    global.prisma = db;
+if (process.env.NODE_ENV !== "production") {
+  globalThis.prisma = db;
 }
 
 export default db;

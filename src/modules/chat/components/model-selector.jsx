@@ -20,8 +20,11 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
+// Mounting every model (hundreds) on open is slow, so rows are shown a page at a time.
+const PAGE_SIZE = 50;
+
 export function ModelSelector({
-  models,
+  models = [],
   selectedModelId,
   onModelSelect,
   className,
@@ -30,8 +33,10 @@ export function ModelSelector({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedForDetails, setSelectedForDetails] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const selectedModel = models.find((m) => m.id === selectedModelId);
+
 
   const formatContextLength = (length) => {
     if (!length || length === null || length === undefined) return "N/A";
@@ -42,9 +47,9 @@ export function ModelSelector({
 
   const isFreeModel = (model) => {
     return (
-      model.pricing.prompt === "0" &&
-      model.pricing.completion === "0" &&
-      model.pricing.request === "0"
+      model.pricing?.prompt === "0" &&
+      model.pricing?.completion === "0" &&
+      (model.pricing?.request ?? "0") === "0"
     );
   };
 
@@ -57,10 +62,10 @@ export function ModelSelector({
   const filteredModels = models.filter((model) => {
     const query = searchQuery.toLowerCase();
     return (
-      model.name.toLowerCase().includes(query) ||
-      model.description.toLowerCase().includes(query) ||
+      model.name?.toLowerCase().includes(query) ||
+      model.description?.toLowerCase().includes(query) ||
       model.id.toLowerCase().includes(query) ||
-      model.architecture.modality.toLowerCase().includes(query)
+      model.architecture?.modality?.toLowerCase().includes(query)
     );
   });
   return (
@@ -72,7 +77,7 @@ export function ModelSelector({
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "h-8 justify-between gap-2 px-2 text-xs hover:bg-accent",
+              "h-8 max-w-[14rem] justify-between gap-2 px-2 text-xs text-foreground hover:bg-accent sm:max-w-xs",
               className
             )}
           >
@@ -86,19 +91,22 @@ export function ModelSelector({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className={"w-3xl p-0"} align="start">
+        <PopoverContent className={"w-[min(92vw,34rem)] p-0"} align="start">
           <div className="p-3 border-b">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search models..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
                 className="h-9 pl-9"
               />
             </div>
           </div>
-          <ScrollArea className={"h-[400px]"}>
+          <ScrollArea className={"h-[min(60vh,400px)]"}>
             <div className="p-2">
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
                 Available Models ({filteredModels.length})
@@ -109,7 +117,7 @@ export function ModelSelector({
                 No models found matching &quot;{searchQuery}&quot;
               </div>
             ) : (
-              filteredModels.map((model) => (
+              filteredModels.slice(0, visibleCount).map((model) => (
                 <div
                   key={model.id}
                   className={cn(
@@ -155,7 +163,7 @@ export function ModelSelector({
                       </span>
                       <span>•</span>
                       <span className="capitalize">
-                        {model.architecture.modality.replace("->", " → ")}
+                        {(model.architecture?.modality ?? "text").replace("->", " → ")}
                       </span>
                     </div>
                   </div>
@@ -170,6 +178,18 @@ export function ModelSelector({
                   </Button>
                 </div>
               ))
+            )}
+            {filteredModels.length > visibleCount && (
+              <div className="p-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                >
+                  Show more ({filteredModels.length - visibleCount} left)
+                </Button>
+              </div>
             )}
           </ScrollArea>
         </PopoverContent>
@@ -186,7 +206,7 @@ export function ModelSelector({
               Detailed information about this AI model
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className=" pr-4 h-[400px]">
+          <ScrollArea className="h-[min(55vh,400px)] pr-4">
             {selectedForDetails && (
               <div className="space-y-6">
                 {/* Description */}
@@ -220,7 +240,7 @@ export function ModelSelector({
                       </p>
                       <p className="text-sm font-medium">
                         {formatContextLength(
-                          selectedForDetails.top_provider.max_completion_tokens
+                          selectedForDetails.top_provider?.max_completion_tokens
                         )}{" "}
                         tokens
                       </p>
@@ -228,7 +248,7 @@ export function ModelSelector({
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Modality</p>
                       <p className="text-sm font-medium capitalize">
-                        {selectedForDetails.architecture.modality.replace(
+                        {(selectedForDetails.architecture?.modality ?? "text").replace(
                           "->",
                           " → "
                         )}
@@ -237,7 +257,7 @@ export function ModelSelector({
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Tokenizer</p>
                       <p className="text-sm font-medium">
-                        {selectedForDetails.architecture.tokenizer}
+                        {selectedForDetails.architecture?.tokenizer ?? "N/A"}
                       </p>
                     </div>
                   </div>
@@ -256,7 +276,7 @@ export function ModelSelector({
                         Input Modalities
                       </p>
                       <div className="flex flex-wrap gap-1">
-                        {selectedForDetails.architecture.input_modalities.map(
+                        {(selectedForDetails.architecture?.input_modalities ?? []).map(
                           (modality) => (
                             <Badge
                               key={modality}
@@ -274,7 +294,7 @@ export function ModelSelector({
                         Output Modalities
                       </p>
                       <div className="flex flex-wrap gap-1">
-                        {selectedForDetails.architecture.output_modalities.map(
+                        {(selectedForDetails.architecture?.output_modalities ?? []).map(
                           (modality) => (
                             <Badge
                               key={modality}
@@ -296,8 +316,8 @@ export function ModelSelector({
                 <div>
                   <h3 className="text-sm font-semibold mb-3">Pricing</h3>
                   {isFreeModel(selectedForDetails) ? (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <Badge variant="secondary" className="bg-green-500/20">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20">
+                      <Badge variant="secondary" className="bg-success/15 text-success">
                         FREE
                       </Badge>
                       <p className="text-sm text-muted-foreground">
@@ -306,7 +326,7 @@ export function ModelSelector({
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
-                      {Object.entries(selectedForDetails.pricing).map(
+                      {Object.entries(selectedForDetails.pricing ?? {}).map(
                         ([key, value]) => {
                           if (value === "0") return null;
                           return (
@@ -337,12 +357,12 @@ export function ModelSelector({
                       </span>
                       <Badge
                         variant={
-                          selectedForDetails.top_provider.is_moderated
+                          selectedForDetails.top_provider?.is_moderated
                             ? "default"
                             : "secondary"
                         }
                       >
-                        {selectedForDetails.top_provider.is_moderated
+                        {selectedForDetails.top_provider?.is_moderated
                           ? "Enabled"
                           : "Disabled"}
                       </Badge>

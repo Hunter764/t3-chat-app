@@ -1,18 +1,23 @@
 "use client";
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { NeonAuthUIProvider } from '@neondatabase/neon-js/auth/react';
-import '@neondatabase/neon-js/ui/css';
 import { authClient } from '@/lib/auth';
 
 export function NeonAuthProvider({ children }) {
+  const router = useRouter();
+
   return (
-    <NeonAuthUIProvider 
-      emailOTP 
+    <NeonAuthUIProvider
+      emailOTP
       authClient={authClient}
-      viewPaths={{
-        SIGN_IN: '/auth/sign-in',
-        SIGN_UP: '/auth/sign-up',
-      }}
+      basePath="/auth"
+      redirectTo="/"
+      navigate={router.push}
+      replace={router.replace}
+      onSessionChange={() => router.refresh()}
+      Link={Link}
     >
       {children}
     </NeonAuthUIProvider>

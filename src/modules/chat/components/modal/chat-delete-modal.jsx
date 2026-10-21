@@ -3,15 +3,24 @@
 import Modal from "@/components/ui/modal";
 import { useDeleteChat } from "../../hooks/chat";
 import React from "react";
-import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { useChatStore } from "../../store/chat-store";
 
 const DeleteChatModal = ({ isModalOpen, setIsModalOpen, chatId }) => {
   const { mutateAsync, isPending } = useDeleteChat(chatId);
+  const router = useRouter();
+  const activeChatId = useChatStore((state) => state.activeChatId);
 
   const handleDelete = async () => {
     try {
-      await mutateAsync();
-      setIsModalOpen(false);
+      const res = await mutateAsync();
+      if (res?.success) {
+        setIsModalOpen(false);
+        // The open chat no longer exists, so leave it.
+        if (activeChatId === chatId) {
+          router.push("/");
+        }
+      }
     } catch (error) {
       console.error("Error deleting chat:", error);
     }
@@ -27,7 +36,7 @@ const DeleteChatModal = ({ isModalOpen, setIsModalOpen, chatId }) => {
       submitText={isPending ? "Deleting..." : "Delete"}
       submitVariant="destructive"
     >
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted-foreground">
         Once deleted, you will not be able to recover this chat.
       </p>
     </Modal>
